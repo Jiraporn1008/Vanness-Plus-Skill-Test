@@ -87,78 +87,91 @@
   </style>
 </head>
 <body>
-
 <div class="container">
   <div class="uploader fade-in">
     <h1>📁 Excel File Mapper</h1>
-    <p>Upload your <span class="highlight">Daily report_YYYYMMDD_Name_Surname.xls</span> and <span class="highlight">New Employee_YYYYMM.xls</span> files.</p>
+    <p>Upload your <span class="highlight">Daily report_YYYYMMDD_Name_Surname.xls</span>
+       and <span class="highlight">New Employee_YYYYMM.xls</span> files.</p>
     <input type="file" id="files" multiple accept=".xls,.xlsx" />
   </div>
-
-  <div id="output" class="fade-in"></div>
+  <div id="latest" class="fade-in"></div>
+  <div id="dashboard" class="fade-in"></div>
 </div>
-
 <script>
-document.getElementById('files').addEventListener('change', handleFiles);
+  const allDailyReports = [];
+  const allNewEmployees = [];
+  const usedEmployeeNames = new Set();
 
-function handleFiles(event) {
-  const files = event.target.files;
-  const dailyReports = [];
-  const newEmployees = [];
-  const readPromises = [];
+  document.getElementById('files').addEventListener('change', handleFiles);
 
-  for (const file of files) {
-    const reader = new FileReader();
-    readPromises.push(new Promise((resolve, reject) => {
-      reader.onload = e => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
+  function handleFiles(event) {
+    const files = event.target.files;
+    const newDailyReports = [];
+    const newNewEmployees = [];
+    const readPromises = [];
 
-        if (file.name.startsWith("Daily report_")) {
-          dailyReports.push({ name: file.name, data: json });
-        } else if (file.name.startsWith("New Employee_")) {
-          newEmployees.push({ name: file.name, data: json });
-        }
+    for (const file of files) {
+      const reader = new FileReader();
+      readPromises.push(new Promise((resolve, reject) => {
+        reader.onload = e => {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet);
 
-        resolve();
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    }));
+          if (file.name.startsWith("Daily report_")) {
+            if (!allDailyReports.some(f => f.name === file.name)) {
+              const daily = { name: file.name, data: json };
+              allDailyReports.push(daily);
+              newDailyReports.push(daily);
+            }
+          } else if (file.name.startsWith("New Employee_")) {
+            const exists = allNewEmployees.find(f => f.name === file.name);
+            const newFile = { name: file.name, data: json };
+            if (!exists) {
+              allNewEmployees.push(newFile);
+              newNewEmployees.push(newFile);
+            } else {
+              const unused = json.some(emp => !usedEmployeeNames.has(emp["Employee Name"]));
+              if (unused) newNewEmployees.push(newFile);
+            }
+          }
+
+          resolve();
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      }));
+    }
+
+    Promise.all(readPromises).then(() => {
+      event.target.value = '';
+      renderLatestTables(newDailyReports, newNewEmployees);
+      renderDashboard();
+    });
   }
 
-  Promise.all(readPromises).then(() => {
-    const output = document.getElementById('output');
-    output.innerHTML = "";
+  function renderLatestTables(daily, emp) {
+    const out = document.getElementById('latest');
+    out.innerHTML = '';
+    daily.forEach(f =>
+      out.innerHTML += `<div class="section card"><h3>📄 Daily Report: ${f.name}</h3>${toTable(f.data)}</div>`
+    );
+    emp.forEach(f =>
+      out.innerHTML += `<div class="section card"><h3>👥 New Employees: ${f.name}</h3>${toTable(f.data)}</div>`
+    );
+    if (!daily.length && !emp.length)
+      out.innerHTML = '<p><em>No new data to display. Already used in dashboard.</em></p>';
+  }
 
-    // Show Daily Reports
-    dailyReports.forEach(file => {
-      output.innerHTML += `
-        <div class="section card">
-          <h3>📄 Daily Report: ${file.name}</h3>
-          ${toTable(file.data)}
-        </div>
-      `;
-    });
-
-    // Show New Employees
-    newEmployees.forEach(file => {
-      output.innerHTML += `
-        <div class="section card">
-          <h3>👥 New Employees: ${file.name}</h3>
-          ${toTable(file.data)}
-        </div>
-      `;
-    });
-
-    // Build Employee Dashboard from passed candidates
-    const allEmployees = [].concat(...newEmployees.map(f => f.data));
+  function renderDashboard() {
+    const out = document.getElementById('dashboard');
+    out.innerHTML = '';
+    const allEmployees = [].concat(...allNewEmployees.map(f => f.data));
     const dashboard = [];
 
-    dailyReports.forEach(file => {
-      const parts = file.name.replace('.xls', '').split('_');
+    allDailyReports.forEach(file => {
+      const parts = file.name.replace(/\.(xls|xlsx)$/i, '').split('_');
       const teamMember = parts.slice(-2).join(' ');
 
       file.data.forEach(row => {
@@ -166,7 +179,7 @@ function handleFiles(event) {
         if (status && status.toLowerCase() === "pass") {
           const candidateName = row["Candidate Name"];
           const matched = allEmployees.find(emp => emp["Employee Name"] === candidateName);
-
+          if (candidateName) usedEmployeeNames.add(candidateName);
           dashboard.push({
             "Employee Name": candidateName || "Unknown",
             "Join Date": matched?.["Join Date"] || "-",
@@ -177,28 +190,34 @@ function handleFiles(event) {
       });
     });
 
-    output.innerHTML += `
+    const uniqueDashboard = [];
+    const seen = new Set();
+    dashboard.forEach(entry => {
+      const key = entry["Employee Name"] + "|" + entry["Team Member"];
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueDashboard.push(entry);
+      }
+    });
+
+    out.innerHTML = `
       <div class="section card">
-        <h2>📊 Employee Dashboard (Passed Candidates)</h2>
-        ${toTable(dashboard)}
+        <h2>📊 Employee Dashboard</h2>
+        ${toTable(uniqueDashboard)}
       </div>
     `;
-  });
-}
-
-function toTable(data) {
-  if (!data.length) return "<p><em>No data available.</em></p>";
-
-  const keys = Object.keys(data[0]);
-  let html = "<table><thead><tr>" + keys.map(k => `<th>${k}</th>`).join('') + "</tr></thead><tbody>";
-
-  for (const row of data) {
-    html += "<tr>" + keys.map(k => `<td>${row[k] || ""}</td>`).join('') + "</tr>";
   }
 
-  html += "</tbody></table>";
-  return html;
-}
+  function toTable(data) {
+    if (!data.length) return "<p><em>No data available.</em></p>";
+    const keys = Object.keys(data[0]);
+    let html = "<table><thead><tr>" + keys.map(k => `<th>${k}</th>`).join('') + "</tr></thead><tbody>";
+    for (const row of data) {
+      html += "<tr>" + keys.map(k => `<td>${row[k] || ""}</td>`).join('') + "</tr>";
+    }
+    html += "</tbody></table>";
+    return html;
+  }
 </script>
 
 </body>
