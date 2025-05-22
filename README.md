@@ -1,7 +1,7 @@
 # Vanness-Plus-Skill-Test
 # 📁 Excel Data Mapper
 
-A web application that reads two types of Excel files and maps daily report candidates to newly joined employees, generating a clean dashboard of matched data.
+A web application that reads two types of Excel files and maps **passed candidates** from daily reports to newly joined employees, generating a clean dashboard of matched data.
 
 ## ✨ Features
 
@@ -9,7 +9,8 @@ A web application that reads two types of Excel files and maps daily report cand
 - Detects two Excel file types:
   - `Daily report_YYYYMMDD_Name_Surname.xls`
   - `New Employee_YYYYMM.xls`
-- Cross-maps candidates in reports with new employees
+- Only candidates with **Status = "Pass"** in daily reports are processed
+- Cross-maps passed candidates with new employees
 - Builds a dashboard with matched data (Employee Name, Join Date, Role, and Team Member)
 
 ## 🚀 How to Use
@@ -22,10 +23,11 @@ A web application that reads two types of Excel files and maps daily report cand
    - `Daily report_YYYYMMDD_First_Last.xls`
    - `New Employee_YYYYMM.xls`
 4. The app will automatically:
-   - Parse the uploaded files
-   - Display raw data in tables
-   - Match candidates to employee entries
-   - Render a dashboard with the mapped data
+   - Parse uploaded files in-browser
+   - Display data tables for each file
+   - Identify candidates with `"Pass"` status
+   - Match them with employee records
+   - Show results in a unified dashboard
 
 ### Run on GitHub Pages
 

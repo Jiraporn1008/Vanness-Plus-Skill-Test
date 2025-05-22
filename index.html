@@ -133,7 +133,7 @@ function handleFiles(event) {
     const output = document.getElementById('output');
     output.innerHTML = "";
 
-    // Daily Reports Table
+    // Show Daily Reports
     dailyReports.forEach(file => {
       output.innerHTML += `
         <div class="section card">
@@ -143,7 +143,7 @@ function handleFiles(event) {
       `;
     });
 
-    // New Employees Table
+    // Show New Employees
     newEmployees.forEach(file => {
       output.innerHTML += `
         <div class="section card">
@@ -153,6 +153,7 @@ function handleFiles(event) {
       `;
     });
 
+    // Build Employee Dashboard from passed candidates
     const allEmployees = [].concat(...newEmployees.map(f => f.data));
     const dashboard = [];
 
@@ -161,13 +162,15 @@ function handleFiles(event) {
       const teamMember = parts.slice(-2).join(' ');
 
       file.data.forEach(row => {
-        const candidate = row["Candidate Name"];
-        const matched = allEmployees.find(emp => emp["Employee Name"] === candidate);
-        if (matched) {
+        const status = row["Status"];
+        if (status && status.toLowerCase() === "pass") {
+          const candidateName = row["Candidate Name"];
+          const matched = allEmployees.find(emp => emp["Employee Name"] === candidateName);
+
           dashboard.push({
-            "Employee Name": matched["Employee Name"],
-            "Join Date": matched["Join Date"],
-            "Role": matched["Role"],
+            "Employee Name": candidateName || "Unknown",
+            "Join Date": matched?.["Join Date"] || "-",
+            "Role": row["Role"] || "-",
             "Team Member": teamMember
           });
         }
@@ -176,7 +179,7 @@ function handleFiles(event) {
 
     output.innerHTML += `
       <div class="section card">
-        <h2>📊 Employee Dashboard</h2>
+        <h2>📊 Employee Dashboard (Passed Candidates)</h2>
         ${toTable(dashboard)}
       </div>
     `;
