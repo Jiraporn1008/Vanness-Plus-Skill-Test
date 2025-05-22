@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Excel Data Mapper</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 2em;
+      color: #333;
+    }
+
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .uploader {
+      background: #fff;
+      padding: 2em;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 2em;
+    }
+
+    input[type="file"] {
+      display: block;
+      margin-top: 1em;
+      font-size: 1rem;
+    }
+
+    .section {
+      margin-bottom: 2em;
+    }
+
+    .card {
+      background: #fff;
+      padding: 1.5em;
+      border-radius: 12px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+      margin-top: 1em;
+      overflow-x: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 1em;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.6em 0.8em;
+      text-align: left;
+    }
+
+    th {
+      background-color: #e9ecef;
+      color: #495057;
+    }
+
+    p {
+      margin: 0.5em 0;
+    }
+
+    .highlight {
+      color: #007bff;
+      font-weight: 600;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="uploader fade-in">
+    <h1>📁 Excel File Mapper</h1>
+    <p>Upload your <span class="highlight">Daily report_YYYYMMDD_Name_Surname.xls</span> and <span class="highlight">New Employee_YYYYMM.xls</span> files.</p>
+    <input type="file" id="files" multiple accept=".xls,.xlsx" />
+  </div>
+
+  <div id="output" class="fade-in"></div>
+</div>
+
+<script>
+document.getElementById('files').addEventListener('change', handleFiles);
+
+function handleFiles(event) {
+  const files = event.target.files;
+  const dailyReports = [];
+  const newEmployees = [];
+  const readPromises = [];
+
+  for (const file of files) {
+    const reader = new FileReader();
+    readPromises.push(new Promise((resolve, reject) => {
+      reader.onload = e => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        if (file.name.startsWith("Daily report_")) {
+          dailyReports.push({ name: file.name, data: json });
+        } else if (file.name.startsWith("New Employee_")) {
+          newEmployees.push({ name: file.name, data: json });
+        }
+
+        resolve();
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    }));
+  }
+
+  Promise.all(readPromises).then(() => {
+    const output = document.getElementById('output');
+    output.innerHTML = "";
+
+    // Daily Reports Table
+    dailyReports.forEach(file => {
+      output.innerHTML += `
+        <div class="section card">
+          <h3>📄 Daily Report: ${file.name}</h3>
+          ${toTable(file.data)}
+        </div>
+      `;
+    });
+
+    // New Employees Table
+    newEmployees.forEach(file => {
+      output.innerHTML += `
+        <div class="section card">
+          <h3>👥 New Employees: ${file.name}</h3>
+          ${toTable(file.data)}
+        </div>
+      `;
+    });
+
+    const allEmployees = [].concat(...newEmployees.map(f => f.data));
+    const dashboard = [];
+
+    dailyReports.forEach(file => {
+      const parts = file.name.replace('.xls', '').split('_');
+      const teamMember = parts.slice(-2).join(' ');
+
+      file.data.forEach(row => {
+        const candidate = row["Candidate Name"];
+        const matched = allEmployees.find(emp => emp["Employee Name"] === candidate);
+        if (matched) {
+          dashboard.push({
+            "Employee Name": matched["Employee Name"],
+            "Join Date": matched["Join Date"],
+            "Role": matched["Role"],
+            "Team Member": teamMember
+          });
+        }
+      });
+    });
+
+    output.innerHTML += `
+      <div class="section card">
+        <h2>📊 Employee Dashboard</h2>
+        ${toTable(dashboard)}
+      </div>
+    `;
+  });
+}
+
+function toTable(data) {
+  if (!data.length) return "<p><em>No data available.</em></p>";
+
+  const keys = Object.keys(data[0]);
+  let html = "<table><thead><tr>" + keys.map(k => `<th>${k}</th>`).join('') + "</tr></thead><tbody>";
+
+  for (const row of data) {
+    html += "<tr>" + keys.map(k => `<td>${row[k] || ""}</td>`).join('') + "</tr>";
+  }
+
+  html += "</tbody></table>";
+  return html;
+}
+</script>
+
+</body>
+</html>
