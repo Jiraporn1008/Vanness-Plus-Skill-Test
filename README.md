@@ -40,5 +40,5 @@ A web application that reads two types of Excel files and maps daily report cand
 
 ## 📁 Sample data
 
-Use the link below to access sample Excel files for testing: 
+Use the link below to access and download sample Excel files for testing: 
 https://drive.google.com/drive/folders/1SFCYdKnnb9kayWI30Bo9Z6cHD-PafuhB?usp=sharing
