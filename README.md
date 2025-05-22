@@ -29,7 +29,7 @@ A web application that reads two types of Excel files and maps daily report cand
 
 ### Run on GitHub Pages
 
-1. Visit the [GitHub Pages deployment](#) *([replace with actual link](https://jiraporn1008.github.io/Vanness-Plus-Skill-Test/))*.
+1. Visit the [GitHub Pages deployment](#) *([Vanness Plus Skill Test](https://jiraporn1008.github.io/Vanness-Plus-Skill-Test/))*.
 2. Upload your Excel files:
    - `Daily report_YYYYMMDD_First_Last.xls`
    - `New Employee_YYYYMM.xls`
